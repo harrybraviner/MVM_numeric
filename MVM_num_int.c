@@ -81,7 +81,6 @@ int main(int argc, char **argv){
 	double Ck_1,Ck_2,Ck_3,Ck_4;
 	double C_primek_1,C_primek_2,C_primek_3,C_primek_4;
 	for(i=0;i<N_rho;i++){
-		//FIXME rewrite this to write data as it integrates, so as to avoid using very large arrays
 		/* Use RK4 method to numerically integrate */
 		/* k_1 */
 		Ak_1 = A_prime(rho_init + i*delta_rho, A, B, C, C_prime);
