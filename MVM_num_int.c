@@ -8,7 +8,8 @@ This is very similar to the numerical work found near the end of hep-th/0808.172
 // Physics constants
 const double d = 4;		// Number of spacetime dimensions
 const double l_UV = 1;		// The length-scale of the target spacetime in the UV (l in the e.o.m.s)
-const double z = 2;		// The dynamical exponent of the target spacetime in the UV
+double z = 2;			// The dynamical exponent of the target spacetime in the UV
+double a_0 = 0.01;		// The 'size' of the perturbation
 const double K = 1;		// Coefficient in front of r^2*dt^2 is AdS_d. This is purely a gauge choice.
 
 // Programming constants
@@ -30,6 +31,17 @@ double C_prime_prime(double rho, double A, double B, double C, double C_prime);
 
 int main(int argc, char **argv){
 	
+	if(argc>1){
+		// Set the value of z to the first input
+		z = strtod(argv[1],NULL);
+	}
+	if(argc>2){
+		// Set the value of a_0 to the second input
+		a_0 = strtod(argv[2],NULL);
+	}
+	printf("Setting m_0^2, Lambda to values for z = %f\n",z);
+	printf("\"Size\" of the perturbation set to a_0 = %f\n",a_0);
+
 	FILE *outfile = fopen(outfileName, "w");
 	if(outfile == NULL){
 		fprintf(stderr, "Unable to open %s in write mode. Quitting.\n",outfileName);
@@ -48,7 +60,7 @@ int main(int argc, char **argv){
 	A = log(K)/rho_init + 2;	// Could possibly generalise this to another Lifshitz space in the IR by replacing the 2 here
 	B = 2*log(l_UV/l_IR)/rho_init + 2;
 	/* set the gauge field to obey the fall-off condition found earlier, alpha ~ a_0*r^beta */
-	double a_0 = 0.01;
+	a_0 = 0.01;
 	double beta = -(d-3)/2.0 + sqrt((d-3)*(d-3)/4.0 + (d-1)*z/(z*z+(d-3)*z+(d-2)*(d-2)));
 	C = log(a_0)/rho_init + beta;
 	C_prime = -log(a_0)/(rho_init*rho_init);
