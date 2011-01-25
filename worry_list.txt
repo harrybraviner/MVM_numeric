@@ -1,0 +1,12 @@
+This file is intended to catalogue all issue with my program that are either unexplained, unexpected, and might represent an error in my programming.
+
+b_F from power law fitting
+Status: CLOSED
+Description: Whether staring with an AdS or a Li spacetime in the IR, the fitting for the approach to a Lifshitz spacetime at large rho does not prduce a plateu in b_F. However, there is a plateu in b_W.
+Ideas: 	Could be a typo in my curve-fitting code.
+	This might be completely the wrong ansatz to try and fit to F. Need the eigenvectors around Li to check this.
+Resolution: Turned out to be a spurious factor of 2 in my code. Now plateus (though not for very long relative to kapp_F, z_F.)
+
+a_F from power law fitting
+Status: OPEN
+Description: Found a_F being incredibly large. Also seen it come out negative. Again, this doesn't happen with a_W.

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define Bfitpower
+//#define Bfitlog
 #define Ffitpower
 
 /* The purpose of this code is to numerically integrate equations (2.18), (2.19) and (2.20) from hep-th/1011.3502v1 with initial data representing a small displacement from AdS_d.
@@ -20,6 +22,7 @@ double rho_init = 1;			// Start-point for the numerical integration
 const unsigned long N_rho = 50000;	// The number of rho steps
 double delta_rho = 0.01;			// Step-length
 char *outfileName = "output.dat";	// File to which the output will be written
+long est_step = 100;	// number of steps to take between points for curve-fitting estimates
 
 
 
@@ -65,7 +68,7 @@ int main(int argc, char **argv){
 
 	/* Note that we do not work directly with the fields used by CM, as these will become very large at large r. Instead we use A = ln(|f_1|)/rho, B = ln(W)/rho and C = ln(alpha)/rho. All derivatives (including "prime" in this code) are with respect to rho */
 	double A, B, C, C_prime;
-#if 1
+#if 0
 	/* Initialise A,B to the appropriate values for AdS_d */
 	printf("Setting the spacetime at rho = %f to AdS\n",rho_init);
 	A = log(K)/rho_init + 2;
@@ -76,7 +79,7 @@ int main(int argc, char **argv){
 	C = log(a_0)/rho_init + beta;
 	C_prime = -log(a_0)/(rho_init*rho_init);
 #endif
-#if 0
+#if 1
 	/* Set up the spacetime near rho=rho_init to look like a Lifshitz spacetime of length-scale l_UV */
 	printf("Setting the spacetime at rho = %f to Li_%f\n",rho_init,z);
 	A = log(K)/rho_init + 2*z;
@@ -85,17 +88,36 @@ int main(int argc, char **argv){
 	C_prime = -(0.5*log(2*(z-1)/z)+log(l_UV))/(rho_init*rho_init);
 #endif
 
-long est_step = 30;	// number of steps to take between points for curve-fitting estimates
-
+	/* Variable definitions for curve fitting */
 #ifdef Bfitpower
 	// Variable definitions for attempting to fit the curve to W ~ a r^2 + ab r^{\kappa+2}
 	double kappa,a,b;
 	double B1=0,B2=0,B3=0;
 	double rho1=0,rho2=0,rho3=0;
-	// Open a suitable output file
+	// Open a suitable output file, and write headers
 	FILE *Bfitpower_file = fopen("Bfitpower.dat","w");
 	fprintf(Bfitpower_file,"rho\tkappa\ta\tb\n");
 	printf("Attempting a power-law fit to the subleading contributions to W. This is being written to Bfitpower.dat\n");
+#endif
+
+#ifdef Bfitlog
+	// Variable definitions for attempting to fit the curve to W ~ a r^2 + ab r^{\kappa+2}log(r)
+	double kappa_B_log,a_B_log,b_B_log;
+	double pB1_log=0,pB2_log=0,pB3_log=0;
+	// Open a suitable output file, and write headers
+	FILE *Bfitlog_file = fopen("Bfitlog.dat","w");
+	fprintf(Bfitlog_file,"rho\tkappa\ta\tb\n");
+	printf("Attempting a power-law*log fit to the subleading contributions to W. This is being written to Bfitlog.dat\n");
+#endif
+
+#ifdef Ffitpower
+	// Variable definitions for attempting to fi the curve F ~ a_F r^{2 z_F} + a_F b_F r^{2 z_F + \kappa_F}
+	double z_F,kappa_F,a_F,b_F;
+	double pA1, pA2, pA3, pA4;
+	// Open a file to write output to, and write headers
+	FILE *Ffitpower_file = fopen("Ffitpower.dat","w");
+	fprintf(Ffitpower_file,"rho\tkappa_F\ta_F\tb_F\tz_F\n");
+	printf("Attempting to estimate a power-law scaling for F, fit to the subleading contributions to a power-law. This is being written to Ffitpower.dat\n");
 #endif
 
 	/* Write column headers to the output file, then write the inital values */
@@ -107,6 +129,7 @@ long est_step = 30;	// number of steps to take between points for curve-fitting 
 	double Bk_1,Bk_2,Bk_3,Bk_4;
 	double Ck_1,Ck_2,Ck_3,Ck_4;
 	double C_primek_1,C_primek_2,C_primek_3,C_primek_4;
+	double rho;
 	for(i=0;i<N_rho;i++){
 		/* Use RK4 method to numerically integrate */
 		/* k_1 */
@@ -134,12 +157,12 @@ long est_step = 30;	// number of steps to take between points for curve-fitting 
 		B = B + (delta_rho/6)*(Bk_1 + 2*Bk_2 + 2*Bk_3 + Bk_4);
 		C = C + (delta_rho/6)*(Ck_1 + 2*Ck_2 + 2*Ck_3 + Ck_4);
 		C_prime = C_prime + (delta_rho/6)*(C_primek_1 + 2*C_primek_2 + 2*C_primek_3 + C_primek_4);
+		rho = rho_init+delta_rho*(i+1);
 		// Write solution points to a file
-		fprintf(outfile,"%f\t%f\t%f\t%f\t%f\n",rho_init+delta_rho*(i+1),A,B,C,C_prime);
+		fprintf(outfile,"%f\t%f\t%f\t%f\t%f\n",rho,A,B,C,C_prime);
 
 		/* Try to fit to an appropriate curve */
 #ifdef Bfitpower
-		// FIXME So far this has only been tested on the Li_(4/3) to Li_3 flow
 		if(i%est_step==0){
 			B3=B2,B2=B1,B1=B;
 			rho3=rho2,rho2=rho1,rho1=(rho_init+delta_rho*(i+1));
@@ -149,11 +172,29 @@ long est_step = 30;	// number of steps to take between points for curve-fitting 
 			fprintf(Bfitpower_file,"%f\t%f\t%f\t%f\n",rho1,kappa,a,b);
 		}
 #endif
+
+#ifdef Bfitlog
+		// FIXME: Do not yet have a working method to extract these numbers
+#endif
+
+#ifdef Ffitpower
+		if(i%est_step==0){
+			pA4=pA3,pA3=pA2,pA2=pA1,pA1=(rho_init+delta_rho*(i+1))*A; 
+			z_F = (pA2*pA2 + pA3*pA3 - pA1*pA3 - pA2*pA3 + pA1*pA4 - pA2*pA4)/(2*est_step*delta_rho*(-pA1 + 3*pA2 - 3*pA3 + pA4));
+			kappa_F = log((pA1 - pA2 - 2*z_F*est_step*delta_rho)/(pA2 - pA3 - 2*z_F*est_step*delta_rho))/(est_step*delta_rho);
+			b_F = (pA1 - pA2 - 2*z_F*est_step*delta_rho)/(exp(kappa_F*(rho_init+delta_rho*(i+1)))*(1-exp(-kappa_F*est_step*delta_rho)));
+			a_F = exp(pA1-(rho_init+delta_rho*(i+1))*2*z_F - b_F*exp(kappa_F*(rho_init+delta_rho*(i+1))));
+			fprintf(Ffitpower_file,"%f\t%f\t%f\t%f\t%f\n",(rho_init+delta_rho*(i+1)),kappa_F,a_F,b_F,z_F);
+		}
+#endif
 	}
 
 	fclose(outfile);
 #ifdef Bfitpower
 	fclose(Bfitpower_file);
+#endif
+#ifdef Ffitpower
+	fclose(Ffitpower_file);
 #endif
 
 	return 0;
