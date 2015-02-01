@@ -10,3 +10,4 @@ Resolution: Turned out to be a spurious factor of 2 in my code. Now plateus (tho
 a_F from power law fitting
 Status: OPEN
 Description: Found a_F being incredibly large. Also seen it come out negative. Again, this doesn't happen with a_W.
+Posible resolution:	a_F is actually a gauge choice. It -is- set by the initial conditions, but I don't know for sure exactly how it relates. It may really be huge/tiny though.

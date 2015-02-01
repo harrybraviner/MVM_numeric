@@ -6,21 +6,24 @@
 //#define Bfitlog
 #define Ffitpower
 
-/* The purpose of this code is to numerically integrate equations (2.18), (2.19) and (2.20) from hep-th/1011.3502v1 with initial data representing a small displacement from AdS_d.
+//#define AdS_IR
+#define Li_IR
+
+/* The purpose of this code is to numerically integrate equations (2.18), (2.19) and (2.20) from hep-th/1011.3502v1 with initial data representing a small displacement from AdS_d or a Lifshitz spacetime
 This is very similar to the numerical work found near the end of hep-th/0808.1725v2, but we work with the massive vector model and general z */
 
 // Physics constants
-const double d = 4;		// Number of spacetime dimensions
-const double l_UV = 1;		// The length-scale of the target spacetime in the UV (l in the e.o.m.s)
-double z = 2;			// The dynamical exponent of the target spacetime in the UV
-double a_0 = 0.01;		// The 'size' of the perturbation
+const double d = 6;		// Number of spacetime dimensions
+const double L = 1.0;		// The length-scale appearing in the ansatz, and hence the equations of motion.
+double z = 2;			// The dynamical exponent of the Lishitz spacetime to which \Lambda, m_0 are appropriate
+double a_0 = -0.00000001;		// The 'size' of the perturbation
 const double K = 1;		// Coefficient in front of r^2*dt^2 in AdS_d. This is purely a gauge choice.
 
 // Programming constants
 /* Note: work with rho = log r, since this allows for a much greater range */
 double rho_init = 1;			// Start-point for the numerical integration
 const unsigned long N_rho = 50000;	// The number of rho steps
-double delta_rho = 0.01;			// Step-length
+double delta_rho = 0.001;			// Step-length
 char *outfileName = "output.dat";	// File to which the output will be written
 long est_step = 100;	// number of steps to take between points for curve-fitting estimates
 
@@ -61,31 +64,43 @@ int main(int argc, char **argv){
 		exit(0);
 	}
 
-	/* Calculate various physical quantities based on the parameters supplied */
-	m_0 = sqrt((d-2)*z)/l_UV;	// Set the mass of the vector field to the necessary value to attain the UV target
-	Lambda = -(z*z + (d-3)*z + (d-2)*(d-2))/(2*l_UV*l_UV);	// Cosmological constant
-	l_IR = l_UV*sqrt((d-1)*(d-2)/(z*z+(d-3)*z+(d-2)*(d-2)));	// This is used to set the initial data
+	/* Calculate various physical quantities based on the parameters supplied
+	   Specifically, we want to choose \Lambda, m_0 such that they both support
+	   a Lifshitz spacetime of dynamical exponent z, and whatever spacetime is
+	   in the IR with length-scale 1 */
+#ifdef AdS_IR
+	Lambda = -0.5*(d*d - 3*d + 2);
+	m_0 = sqrt(-(2*Lambda*z*(d-2))/(z*z + (d-3)*z + (d-2)*(d-2)));
+#endif
+#ifdef Li_IR
+	Lambda = -0.5*(z*z + (d-3)*z + (d-2)*(d-2));
+	m_0 = sqrt(z*(d-2));
+#endif
 
 	/* Note that we do not work directly with the fields used by CM, as these will become very large at large r. Instead we use A = ln(|f_1|)/rho, B = ln(W)/rho and C = ln(alpha)/rho. All derivatives (including "prime" in this code) are with respect to rho */
 	double A, B, C, C_prime;
-#if 0
-	/* Initialise A,B to the appropriate values for AdS_d */
+#ifdef AdS_IR
+	/* Set up the spacetime at rho_init as an AdS space of length-scale 1 */
 	printf("Setting the spacetime at rho = %f to AdS\n",rho_init);
-	A = log(K)/rho_init + 2;
-	B = 2*log(l_UV/l_IR)/rho_init + 2;
-	/* set the gauge field to obey the fall-off condition found earlier, alpha ~ a_0*r^beta */
-	a_0 = 0.01;
-	double beta = -(d-3)/2.0 + sqrt((d-3)*(d-3)/4.0 + (d-1)*z/(z*z+(d-3)*z+(d-2)*(d-2)));
-	C = log(a_0)/rho_init + beta;
+	A = (log(K)-2*log(L))/rho_init + 2;
+	B = 2*log(L)/rho_init + 2;
+	/* Add a perturbation of size a_0 along the irrelevant direction */
+	C = log(a_0)/rho_init + (0.5*(1-d) + 0.5*sqrt(4*m_0*m_0 + (d-3)*(d-3)));
 	C_prime = -log(a_0)/(rho_init*rho_init);
 #endif
-#if 1
-	/* Set up the spacetime near rho=rho_init to look like a Lifshitz spacetime of length-scale l_UV */
+
+#ifdef Li_IR
+	/* Set up the spacetime near rho=rho_init to look like a Lifshitz spacetime of length-scale L */
 	printf("Setting the spacetime at rho = %f to Li_%f\n",rho_init,z);
 	A = log(K)/rho_init + 2*z;
-	B = 2;
-	C = (0.5*log(2*(z-1)/z)+log(l_UV))/rho_init + z;
-	C_prime = -(0.5*log(2*(z-1)/z)+log(l_UV))/(rho_init*rho_init);
+	B = 2*log(L)/rho_init + 2;
+	C = z + log(2*(d-2)*(z-1))/(2*rho_init) - log(m_0)/rho_init;
+	C_prime = -(0.5*log(2*(d-2)*(z-1)) - log(m_0))/(rho_init*rho_init);
+	/* Add a perturbation of size a_0 along the irrelevant direction */
+	A += +a_0*sqrt(2*z)*(z+d-3)*(z+d-2)*(z+d-2+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*exp(0.5*(2-d-z+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*log(rho_init))/(K*rho_init);
+	B += a_0*sqrt(2*z)*(z-1)*(z+d-2)*(z-3*d+6*sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*exp(0.5*(2-d-z+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*log(rho_init))/rho_init;
+	C += a_0*4*L*z*sqrt(z-1)*(z+d-2)*(z+d-3)*exp(0.5*(2-d-z+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*log(rho_init))/(L*sqrt(2*(z-1)/z)*rho_init);
+	C_prime += (0.5*(2-d-z+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2))) - 1)*(a_0*4*L*z*sqrt(z-1)*(z+d-2)*(z+d-3)*exp(0.5*(2-d-z+sqrt(9*z*z+(4-6*d)*z+(d+6)*(d-2)))*log(rho_init))/(L*sqrt(2*(z-1)/z)*rho_init))/rho_init;
 #endif
 
 	/* Variable definitions for curve fitting */
@@ -202,22 +217,22 @@ int main(int argc, char **argv){
 
 // Function definitions for derivatives
 double A_prime(double rho, double A, double B, double C, double C_prime){
-	double deriv = - A/rho - (d-3)/rho - (2*l_UV*l_UV*Lambda/(d-2))*exp(rho*(2-B))/rho
+	double deriv = - A/rho - (d-3)/rho - (2*L*L*Lambda/(d-2))*exp(rho*(2-B))/rho
 	+ (m_0*m_0/(2*(d-2)))*exp(rho*(2-B+2*C-A))/rho
-	- (1/(2*(d-2)*l_UV*l_UV))*(rho*C_prime*C_prime + 2*C*C_prime + C*C/rho)*exp(rho*(2*C-A));
+	- (1/(2*(d-2)*L*L))*(rho*C_prime*C_prime + 2*C*C_prime + C*C/rho)*exp(rho*(2*C-A));
 	return deriv;
 }
 
 double B_prime(double rho, double A, double B, double C, double C_prime){
-	double deriv = - B/rho - (d-3)/rho - (2*l_UV*l_UV*Lambda/(d-2))*exp(rho*(2-B))/rho
+	double deriv = - B/rho - (d-3)/rho - (2*L*L*Lambda/(d-2))*exp(rho*(2-B))/rho
 	- (m_0*m_0/(2*(d-2)))*exp(rho*(2-B+2*C-A))/rho
-	- (1/(2*(d-2)*l_UV*l_UV))*(rho*C_prime*C_prime + 2*C*C_prime + C*C/rho)*exp(rho*(2*C-A));
+	- (1/(2*(d-2)*L*L))*(rho*C_prime*C_prime + 2*C*C_prime + C*C/rho)*exp(rho*(2*C-A));
 	return deriv;
 }
 
 double C_prime_prime(double rho, double A, double B, double C, double C_prime){
 	double deriv = (3-d - 2/rho + (m_0*m_0/(2*(d-2)))*exp(rho*(2-B+2*C-A)))*(C_prime + C/rho)
 	- (rho*C_prime*C_prime + 2*C*C_prime + C*C/rho)
-	+ 2*C/(rho*rho) + (l_UV*l_UV*m_0*m_0)*exp(rho*(2-B))/rho;
+	+ 2*C/(rho*rho) + (L*L*m_0*m_0)*exp(rho*(2-B))/rho;
 	return deriv;
 }

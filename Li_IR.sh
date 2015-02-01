@@ -15,5 +15,5 @@ z_list="1.1
 for z in $z_list
 do
 	./a.out $z
-	mv ./output.dat Li_IR_z_$z.dat
+	mv ./output.dat ./output/Li_IR_z_$z.dat
 done
